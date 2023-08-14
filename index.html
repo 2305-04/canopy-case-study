@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8" />
+    <meta property="og:title" content="Canopy" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="images/logos/logo.png" />
+    <meta
+      property="og:description"
+      content="Canopy: A CDN monitoring solution."
+    />
+    <!-- need to change to canopy's github linke -->
+    <meta property="og:url" content="https://canopy.github.io" /> 
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script>
+      $(document).ready(function () {
+        // Add smooth scrolling to all links
+        $("a").on("click", function (event) {
+          // Make sure this.hash has a value before overriding default behavior
+          if (this.attributes.href.value.substr(0, 1) === "#") {
+            // Prevent default anchor click behavior
+            event.preventDefault();
+
+            // Store hash
+            var hash = this.hash;
+
+            // Using jQuery's animate() method to add smooth page scroll
+            // The optional number (800) specifies the number of milliseconds it takes to scroll to the specified area
+            $("html, body").animate(
+              {
+                scrollTop: $(hash).offset().top,
+              },
+              800,
+              function () {
+                // Add hash (#) to URL when done scrolling (default click behavior)
+                window.location.hash = hash;
+              }
+            );
+          } // End if
+        });
+      });
+    </script>
+    <script>
+      $(window).scroll(function () {
+        if ($(this).scrollTop() > 300) {
+          $(".bounce").hide(1000);
+        } else {
+          $(".bounce").show(1000);
+        }
+      });
+    </script>
+
+    <title>Canopy</title>
+
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Work+Sans:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="stylesheets/reset.css" />
+    <link rel="stylesheet" href="stylesheets/main.css" />
+
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="images/logos/logo.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="images/logos/logo.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="16x16"
+      href="images/logos/logo.png"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:ital,wght@0,400;0,700;0,900;1,400&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body>
+    <header id="home">
+      <div class="header-backdrop">
+        <nav>
+          <ul>
+            <li>
+              <a href="index.html">
+                <img src="images/logos/logo.png" />
+              </a>
+            </li>
+            <li>
+              <a href="index.html" class="active">Home</a>
+            </li>
+            <li><a href="case-study.html">Case Study</a></li>
+            <li><a href="team.html">Our Team</a></li>
+            <li class="flex-float-right">
+              <!-- need to change to canopy's  -->
+              <a
+                href="https://github.com/canopy/cli"
+                target="_blank"
+              >
+                <img
+                  src="images/logos/github-mark-light.png"
+                  alt="Canopy GitHub"
+                  class="github"
+                />
+              </a>
+            </li>
+          </ul>
+        </nav>
+
+        <div class="banner">
+          <h1>Canopy</h1>
+          <p>
+            An open-source, real-time monitoring framework designed specifically for CDNs
+          </p>
+          <a
+            href="case-study.html"
+            class="button button-primary button-wide banner-cta"
+            >View Case Study</a
+          >
+        </div>
+      </div>
+      <a href="#overview" class="bounce"></a>
+    </header>
+
+    <section id="overview" class="integration">
+      <article class="box">
+        <div class="text-box">
+          <h1>What Is Canopy?</h1>
+          <p>
+            Canopy is an open-source real-time monitoring framework designed specifically for use with the Amazon CloudFront CDN. We automate the deployment of an end-to-end pipeline for collecting, transforming, and storing Amazon CloudFront CDN logs, and process those logs to generate a critical suite of metrics for analysis. 
+          </p>
+          <p>&nbsp;</p>
+          <h1>Easy Setup</h1>
+          <p>
+            Use our
+            <!-- need to change to canopy github link -->
+            <a href="https://github.com/canopy/cli">CLI tool</a> to
+            deploy the canopy pipeline:
+            <code>canopy deploy</code>. Tear it down just as easily with
+            <code>canopy destroy</code>.
+          </p>
+        </div>
+      </article>
+
+      <div class="box">
+        <!-- need to change to canopy's gif or vid -->
+        <img
+          class="gif shadow-screenshot"
+          src="images/gifs/deployWithLogo.gif"
+          alt="Canopy deploy command command line view"
+        />
+      </div>
+    </section>
+
+    <section id="management" class="integration">
+      <div class="box providers">
+        <img
+          id="ui-screenshot"
+          class="browser-screenshot shadow-screenshot"
+          src="images/diagrams/uiDash.png"
+          alt="central control point for viewing services"
+        />
+      </div>
+      <article class="box">
+        <div class="text-box">
+          <h1>Convenient Management</h1>
+          <p>
+            Manage your Canopy pipeline with the 
+            <code>canopy launchDashboard</code> command.
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <!-- <section id="easy-integration" class="integration">
+      <article class="box">
+        <div class="text-box">
+          <h1>Easy Integration</h1>
+          <p>
+            Integrate Tacklebox into your existing applications with one of our
+            four client libraries in
+            <a href="https://github.com/tacklebox-webhooks/ruby">Ruby</a>,
+            <a href="https://github.com/tacklebox-webhooks/golang">Go</a>,
+            <a href="https://github.com/tacklebox-webhooks/javascript"
+              >JavaScript</a
+            >, or
+            <a href="https://github.com/tacklebox-webhooks/python">Python</a>.
+          </p>
+        </div>
+      </article>
+
+      <div class="box">
+        <img
+          class="browser-screenshot"
+          src="images/newDiagrams/clientLibraries.png"
+          alt="central control point for viewing services"
+        />
+      </div>
+    </section> -->
+
+    <section class="lower-cta">
+      <h2>Want to know more?</h2>
+
+      <div class="buttons">
+        <a
+          href="case-study.html"
+          class="button button-primary button-wide banner-cta"
+          >View Case Study</a
+        >
+        <!-- need to change to canopy github link -->
+        <a
+          href="https://github.com/canopy/cli"
+          target="_blank"
+          class="button button-link banner-cta"
+          >View on GitHub</a
+        >
+      </div>
+    </section>
+
+    <footer>
+      <div class="footer-backdrop">
+        <section id="our-team">
+          <h1>Our Team</h1>
+          <p>
+            If you're interested in finding out more, please reach out!
+          </p>
+          <ul>
+            <li class="individual">
+              <a href="https://github.com/AlexRiviere" target="_blank"
+                ><img src="images/team/alex.png" alt="Alex Riviere"
+              /></a>
+              <h3>Alex Riviere</h3>
+              <p>Piscataway, NJ</p>
+              <ul class="social-icons">
+                <li>
+                  <a href="mailto:alexanderm.riviere@gmail.com" target="_blank">
+                    <img src="images/icons/email_icon.png" alt="email" />
+                  </a>
+                </li>
+                <li>
+                  <a href="https://github.com/AlexRiviere" target="_blank"> <!-- Replace href with URL of Alex website-->
+                    <img src="images/icons/website_icon.png" alt="website" />
+                  </a>
+                </li>
+                <li>
+                  <a href="https://www.linkedin.com/in/alex-riviere-7561aab6/" target="_blank">
+                    <img src="images/icons/linked_in_icon.png" alt="linkedin" />
+                  </a>
+                </li>
+              </ul>
+            </li>
+            <li class="individual">
+              <a href="https://github.com/eemanioui" target="_blank"
+                ><img src="images/team/mehdi.png" alt="El Mehdi El Manioui"
+              /></a>
+              <h3>El Mehdi El Manioui</h3>
+              <p>Edmonton, AB Canada</p>
+              <ul class="social-icons">
+                <li>
+                  <a href="mailto:elmanioui.mehdi@gmail.com" target="_blank">
+                    <img src="images/icons/email_icon.png" alt="email" />
+                  </a>
+                </li>
+                <li>
+                  <a href="https://www.elmanioui.com/" target="_blank">
+                    <img src="images/icons/website_icon.png" alt="website" />
+                  </a>
+                </li>
+                <li>
+                  <a href="" target="_blank"> <!-- Fill href with linkedin page of El Mehdi-->
+                    <img src="images/icons/linked_in_icon.png" alt="linkedin" />
+                  </a>
+                </li>
+              </ul>
+            </li>
+            <li class="individual">
+              <a href="ttps://github.com/jason-ng3" target="_blank"
+                ><img src="images/team/jason.png" alt="Jason Ng"
+              /></a>
+              <h3>Jason Ng</h3>
+              <p>New York, NY</p>
+              <ul class="social-icons">
+                <li>
+                  <a href="mailto:jasonscoat@yahoo.com" target="_blank">
+                    <img src="images/icons/email_icon.png" alt="email" />
+                  </a>
+                </li>
+                <li>
+                  <a href="https://amazingjason.dev" target="_blank">
+                    <img src="images/icons/website_icon.png" alt="website" />
+                  </a>
+                </li>
+                <li>
+                  <a href="" target="_blank"> <!-- Fill href with linkedin page of Jason-->
+                    <img src="images/icons/linked_in_icon.png" alt="linkedin" />
+                  </a>
+                </li>
+              </ul>
+            </li>
+            <li class="individual">
+              <a href="https://github.com/mshyer" target="_blank"
+                ><img src="images/team/michael.png" alt="Michael Shyer"
+              /></a>
+              <h3>Michael Shyer</h3>
+              <p>New York, Ny</p>
+              <ul class="social-icons">
+                <li>
+                  <a href="mailto:mshyer@outlook.com" target="_blank">
+                    <img src="images/icons/email_icon.png" alt="email" />
+                  </a>
+                </li>
+                <li>
+                  <a href="https://github.com/mshyer" target="_blank"> <!-- Replace href with URL of Michael Website-->
+                    <img src="images/icons/website_icon.png" alt="website" />
+                  </a>
+                </li>
+                <li>
+                  <a href="" target="_blank"> <!-- Fill href with linkedin page of Michael-->
+                    <img src="images/icons/linked_in_icon.png" alt="linkedin" />
+                  </a>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+      </div>
+    </footer>
+  </body>
+</html>
