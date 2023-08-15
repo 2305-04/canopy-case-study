@@ -123,7 +123,7 @@
 
         <h3 id="monitoring">2.2 Monitoring</h3>
         <p>
-          In software engineering, monitoring is a process developers use to understand how systems and code are functioning. Google describes monitoring as: “Collecting, processing, aggregating, and displaying real-time quantitative data about a system.”
+          In software engineering, monitoring is a process developers use to understand how systems and code are functioning. Google describes monitoring as: “Collecting, processing, aggregating, and displaying real-time quantitative data about a system.”<sup class="footnote-ref"><a id="fnref1" href="#fn1">[1]</a></sup>
         </p>
         <p>
           By visualizing aggregated data, it’s much easier for developers and system administrators to recognize trends and gain insight into the health of a system. In order to monitor a system, we need to collect data, specifically telemetry data.
@@ -131,7 +131,7 @@
 
         <h4>Telemetry</h4>
         <p>
-          Telemetry data is “data that production systems emit to provide feedback about what’s happening inside the system”. The three main telemetry data types used in software engineering are logs, metrics, and traces.
+          Telemetry data is “data that production systems emit to provide feedback about what’s happening inside the system”.<sup class="footnote-ref"><a id="fnref2" href="#fn2">[2]</a></sup> The three main telemetry data types used in software engineering are logs, metrics, and traces.
         </p>
         <div class="img-wrapper">
           <img src="images/diagrams/logsMetricsTraces.png" alt="logsMetricsTraces" />
@@ -171,7 +171,7 @@
         <h4>CDNs are a "black box"</h4>
 
         <p>
-          Due to their performance advantages, CDNs have become an indispensable piece of infrastructure for public-facing web applications. CDNs currently handle an estimated 72% of all internet traffic, including dynamic content and streaming video and audio.
+          Due to their performance advantages, CDNs have become an indispensable piece of infrastructure for public-facing web applications. CDNs currently handle an estimated 72% of all internet traffic,<sup class="footnote-ref"><a id="fnref3" href="#fn3">[3]</a></sup>  including dynamic content and streaming video and audio.
         </p>
 
         <div class="img-wrapper">
@@ -185,7 +185,7 @@
         <h4>CDN logs contain valuable data</h4>
 
         <p>
-          Additionally, because so much user activity is served directly by the CDN, CDN logs are full of valuable information which can be used to answer diverse questions about our web applications, including questions related to user behavior, latency, security and beyond. 
+          Additionally, because so much user activity is served directly by the CDN, CDN logs are full of valuable information which can be used to answer diverse questions about our web applications, including questions related to user behavior, latency, security and beyond.<sup class="footnote-ref"><a id="fnref4" href="#fn4">[4]</a></sup>
         </p>
 
         <p>
@@ -227,13 +227,13 @@
         </p>
 
         <p>
-          CDN log data can generate metrics that correspond to the golden signals, for example, “90th percentile time to first byte (TTFB)” for latency. However, in order to monitor data from the CDN, it is necessary to transport and process that data to a central location where it can be used. Let’s take a look at what goes into building a data pipeline for taking CDN logs from the source all the way to visualizing those metrics in a dashboard UI. 
+          CDN log data can generate metrics that correspond to the golden signals, for example, “90th percentile time to first byte (TTFB)” for latency.<sup class="footnote-ref"><a id="fnref5" href="#fn5">[5]</a></sup> However, in order to monitor data from the CDN, it is necessary to transport and process that data to a central location where it can be used. Let’s take a look at what goes into building a data pipeline for taking CDN logs from the source all the way to visualizing those metrics in a dashboard UI. 
         </p>
 
         <h2 id="building-a-logging-pipeline">3. Building a Logging Pipeline</h2>
 
         <p>
-          Data pipelines are systems that process and move data from a source to a destination, where it can then be analyzed. Data pipelines for telemetry data are essential to software monitoring.
+          Data pipelines are systems that process and move data from a source to a destination, where it can then be analyzed. Data pipelines for telemetry data are essential to software monitoring.<sup class="footnote-ref"><a id="fnref6" href="#fn6">[6]</a></sup>
         </p>
 
         <p>
@@ -241,7 +241,7 @@
         </p>
 
         <p>
-          To better define what makes up a typical logging pipeline, we use the model for telemetry pipelines outlined by Jamie Riedesel in her book Software Telemetry. Riedesel identifies three key “stages” for telemetry pipelines, Emitting, Shipping, and Presentation. Taken together, these three stages describe the flow of telemetry data as it moves through a pipeline.
+          To better define what makes up a typical logging pipeline, we use the model for telemetry pipelines outlined by Jamie Riedesel in her book Software Telemetry. Riedesel identifies three key “stages” for telemetry pipelines, Emitting, Shipping, and Presentation.<sup class="footnote-ref"><a id="fnref7" href="#fn7">[7]</a></sup> Taken together, these three stages describe the flow of telemetry data as it moves through a pipeline.
         </p>
 
         <p>
@@ -315,7 +315,7 @@
         </p>
 
         <p>
-          LoveHolidays, an online travel agent, states in an article they published on upgrading their CDN monitoring solution that they process more than <strong>30 gigabytes per day</strong> of CDN logs. That is quite a lot for a medium-sized company to deal with for just one type of telemetry data for one component of their cloud architecture! Altinity, an enterprise database provider, used CDN telemetry as an example of a typical trillion row dataset. 
+          LoveHolidays, an online travel agent, states in an article they published on upgrading their CDN monitoring solution that they process more than <strong>30 gigabytes per day</strong> of CDN logs.<sup class="footnote-ref"><a id="fnref8" href="#fn8">[8]</a></sup> That is quite a lot for a medium-sized company to deal with for just one type of telemetry data for one component of their cloud architecture! Altinity, an enterprise database provider, used CDN telemetry as an example of a typical trillion row dataset. <sup class="footnote-ref"><a id="fnref9" href="#fn9">[1]</a></sup>
         </p>
 
         <p>
@@ -375,7 +375,7 @@
         </p>
 
         <p>
-          However, if something goes wrong in a production system’s cloud architecture, the answer to what went wrong might lie in a single log line. In ApacheCon 2019, Geoff Genz gave a presentation describing the way Comcast stores CDN log data. He addressed this problem directly saying “We can't do just aggregates... we have to have the actual events. Because if somebody calls up and asks what happened with this client at this time, we need every single thing that happened”.
+          However, if something goes wrong in a production system’s cloud architecture, the answer to what went wrong might lie in a single log line. In ApacheCon 2019, Geoff Genz gave a presentation describing the way Comcast stores CDN log data. He addressed this problem directly saying “We can't do just aggregates... we have to have the actual events. Because if somebody calls up and asks what happened with this client at this time, we need every single thing that happened”.<sup class="footnote-ref"><a id="fnref10" href="#fn10">[10]</a></sup>
         </p>
 
         <h4>Providing efficient compression</h4>
@@ -385,7 +385,7 @@
         </p>
 
         <p>
-          A corollary is that databases storing CDN log data should not add large indexes to log data. Indexes are data structures that improve the speed of queries. Large indexes increase the storage requirements and generating the indexes eats up system resources. 
+          A corollary is that databases storing CDN log data should not add large indexes to log data. Indexes are data structures that improve the speed of queries. Large indexes increase the storage requirements and generating the indexes eats up system resources. <sup class="footnote-ref"><a id="fnref11" href="#fn11">[11]</a></sup>
         </p>
 
         <h4>Supporting quick batch insertions</h4>
@@ -562,7 +562,76 @@
 
 
 
-
+        <h2 id="References">8. References</h2>
+        <div class="footnotes">
+          <ol class="footnotes-list">
+            <li id="fn1" class="footnote-item">
+              <a href="https://theswissbay.ch/pdf/Books/Computer%20science/O%27Reilly/monitoring-distributed-systems.pdf">
+                Monitoring Distributed Systems, Case Studies from Google’s SRE Teams p1
+              </a>
+              <a href="#fnref1">↩︎</a>
+            </li>
+            <li id="fn2" class="footnote-item">
+              <a href="https://livebook.manning.com/book/software-telemetry/chapter-1/">
+                Jamie Riedesel "Software Telemetry"
+              </a>
+              <a href="#fnref2">↩︎</a>
+            </li>
+            <li id="fn3" class="footnote-item">
+              <a href="https://cloud.report/Resources/Whitepapers/eea79d9b-9fe3-4018-86c6-3d1df813d3b8_white-paper-c11-741490.pdf">
+                Cisco Visual Networking Index
+              </a>
+              <a href="#fnref3">↩︎</a>
+            </li>
+            <li id="fn4" class="footnote-item">
+              <a href="https://cdn-monitoring.globaldots.com/wp-content/uploads/2022/08/The-benefits-of-better-CDN-monitoring.pdf">
+                GlobalDots: The Benefits of Better CDN Monitoring
+              </a>
+              <a href="#fnref4">↩︎</a>
+            </li>
+            <li id="fn5" class="footnote-item">
+              <a href="https://sre.google/sre-book/monitoring-distributed-systems/#xref_monitoring_golden-signals">
+                Monitoring Distributed Systems by Google
+              </a>
+              <a href="#fnref5">↩︎</a>
+            </li>
+            <li id="fn6" class="footnote-item">
+              <a href="">
+                Data Pipelines Pocket Reference: Moving and Processing Data for Analytics, p1
+              </a>
+              <a href="#fnref6">↩︎</a>
+            </li>
+            <li id="fn7" class="footnote-item">
+              <a href="https://livebook.manning.com/book/software-telemetry/chapter-1/">
+                Jamie Riedesel "Software Telemetry"
+              </a>
+              <a href="#fnref7">↩︎</a>
+            </li>
+            <li id="fn8" class="footnote-item">
+              <a href="https://tech.loveholidays.com/realtime-fastly-logs-with-grafana-loki-for-under-1-a-day-5b63ccf32d66">
+                Realtime Fastly Logs with Grafana Loki for under $1 a day
+              </a>
+              <a href="#fnref8">↩︎</a>
+            </li>
+            <li id="fn9" class="footnote-item">
+              <a href="https://altinity.com/wp-content/uploads/2022/08/sizematters-best-practices-for-trillion-row-datasets-on-clickhouse.pdf">
+                Size Matters: Best Practices for Trillion Row Datasets in ClickHouse 
+              </a>
+              <a href="#fnref9">↩︎</a>
+            </li>
+            <li id="fn10" class="footnote-item">
+              <a href="https://www.youtube.com/watch?app=desktop&v=e9TZ6gFDjNg">
+                ApacheCon 2019
+              </a>
+              <a href="#fnref10">↩︎</a>
+            </li>
+            <li id="fn11" class="footnote-item">
+              <a href="https://www.youtube.com/watch?app=desktop&v=e9TZ6gFDjNg">Apache Con 2019
+              </a>
+              <a href="#fnref11">↩︎</a>
+            </li>
+          </ol>
+        </div>
 
 
 
