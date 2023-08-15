@@ -60,6 +60,21 @@
         <li>
           <a href="#what-is-a-cdn"> 2. What is a CDN?</a>
         </li>
+        <li>
+          <a href="#building-a-logging-pipeline"> 3. Building a Logging Pipeline</a>
+        </li>
+        <li>
+          <a href="#challenges-with-building-a-logging-pipeline">4. Challenges with Building a CDN Logging Pipeline</a>
+        </li>
+        <li>
+          <a href="#existing-solutions"> 5. Existing Solutions</a>
+        </li>
+        <li>
+          <a href="#introducing-canopy"> 6. Introducing Canopy</a>
+        </li>
+        <li>
+          <a href="#using-canopy"> 7. Using Canopy</a>
+        </li>
       </ul>
     </aside>
 
@@ -68,7 +83,7 @@
         <h1>Case Study</h1>
         <h2 id="Introduction">1. Introduction</h2>
         <p>
-          Canopy is an open-source real-time monitoring framework designed specifically for use with the Amazon CloudFront CDN. We automate the deployment of an end-to-end pipeline for collecting, transforming, and storing Amazon CloudFront CDN logs, and process those logs to generate a critical suite of metrics for analysis. 
+          Canopy is an open-source real-time monitoring framework designed specifically for use with the Amazon CloudFront CDN. We automate the deployment of an end-to-end pipeline for collecting, transforming, and storing Amazon CloudFront CDN logs, and process those logs to generate a critical suite of metrics for analysis.
         </p>
         <p>
           In this case study, we introduce CDNs and discuss why you would want to monitor the CDN. Next, we discuss the challenges of working with CDN data and existing real-world solutions. Finally, we outline the evolution of Canopy’s architecture, from an initial prototype, to its current form.
@@ -97,11 +112,462 @@
         </div>
 
         <p>
-          <strong>Reducing the request load on the origin server.</strong> The second major benefit that comes from using CDNs is they can lower the load on a company’s web servers, otherwise known as origin servers. A request fulfilled by the CDN is a request the origin server doesn’t have to address, reducing both bandwidth at the origin, and the system resources required to process requests. 
+          <strong>Reducing the request load on the origin server.</strong> The second major benefit that comes from using CDNs is they can lower the load on a company’s web servers, otherwise known as <strong>origin servers</strong>. A request fulfilled by the CDN is a request the origin server doesn’t have to address, reducing both bandwidth at the origin, and the system resources required to process requests. 
         </p>
         <div class="img-wrapper">
           <img src="images/diagrams/reduceLoadOnServer.png" alt="latency2" />
         </div>
+        <p>
+          CDNs can improve the performance of web applications. But in order to gain insights into how the CDN is functioning, developers need to <strong>monitor</strong> the CDN.
+        </p>
+
+        <h3 id="monitoring">2.2 Monitoring</h3>
+        <p>
+          In software engineering, monitoring is a process developers use to understand how systems and code are functioning. Google describes monitoring as: “Collecting, processing, aggregating, and displaying real-time quantitative data about a system.”
+        </p>
+        <p>
+          By visualizing aggregated data, it’s much easier for developers and system administrators to recognize trends and gain insight into the health of a system. In order to monitor a system, we need to collect data, specifically telemetry data.
+        </p>
+
+        <h4>Telemetry</h4>
+        <p>
+          Telemetry data is “data that production systems emit to provide feedback about what’s happening inside the system”. The three main telemetry data types used in software engineering are logs, metrics, and traces.
+        </p>
+        <div class="img-wrapper">
+          <img src="images/diagrams/logsMetricsTraces.png" alt="logsMetricsTraces" />
+        </div>
+
+        <p>
+          CDNs primarily emit Log data, which can be used to generate metrics.Traces are important when monitoring distributed systems, but are less relevant to our use case.
+        </p>
+
+        <h4>Logs and Metrics</h4>
+
+        <p>
+          <strong>Logs</strong> are timestamped records of events that occur within a software system. They provide detailed and precise information, are often human-readable, and tend to be verbose compared to other types of data. Logs come in many formats and vary greatly depending on context. 
+        </p>
+
+        <p>
+          The primary way to monitor the CDN is through analysis of log data, or CDN logs. The image below shows a <strong>CDN log</strong>. It contains information about the date the event occurred, IP address of the client, as well as other information, such as whether the CDN was able to serve the client directly (cache hit), and information related to the requested content.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/unstructuredLog.png" alt="unstructuredLog" />
+        </div>
+
+        <p>
+          When we want to understand a particular aspect of a system in more detail and how it changes over time, we turn to metrics. 
+        </p>
+
+        <p>
+          <strong>Metrics</strong> are a numerical representation of data. They are usually smaller in size than logs, have fewer fields, and measure a single aspect of the system being monitored. Metric data can be presented in a dashboard, offering a comprehensive view of a system’s overall health. 
+        </p>
+
+        <p>
+          Monitoring log and metric data provides developers with insights they need to debug, optimize and analyze their applications. But why would developers need to monitor the CDN specifically?
+        </p>
+
+        <h3 id="why-monitor-the-cdn">2.3 Why Monitor the CDN?</h3>
+        <h4>CDNs are a "black box"</h4>
+
+        <p>
+          Due to their performance advantages, CDNs have become an indispensable piece of infrastructure for public-facing web applications. CDNs currently handle an estimated 72% of all internet traffic, including dynamic content and streaming video and audio.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/CDNsControlledByThirdParties.png" alt="CDNs Controlled by Third Parties" />
+        </div>
+
+        <p>
+          However, CDNs are in many ways a “black box”. The physical infrastructure that makes up the CDN is operated by third parties and largely outside of our control: we can’t just “ssh” into a CDN to see what is going on. Therefore, monitoring the logs generated from CDN traffic is one of the only ways to gain some level of observability into this system. 
+        </p>
+
+        <h4>CDN logs contain valuable data</h4>
+
+        <p>
+          Additionally, because so much user activity is served directly by the CDN, CDN logs are full of valuable information which can be used to answer diverse questions about our web applications, including questions related to user behavior, latency, security and beyond. 
+        </p>
+
+        <p>
+          The image below shows examples of information found in CDN logs. Client Fields relate to the client (or user) that sent the request. Resource fields relate to the information they are trying to access. Response fields relate to the success or failure of the request to the CDN. 
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/CDNLogFieldsWhyMonitor.png" alt="CDN Log Fields" />
+        </div>
+
+        <p>
+          The information in these logs can provide insights into fundamental metrics of system health corresponding to the <strong>four golden signals</strong> of monitoring.
+        </p>
+
+        <h4>The four golden signals</h4>
+
+        <p>
+          Google identified the <strong>four golden signals</strong> of monitoring: Latency, Traffic, Errors and Saturation. Taken together, these four signals serve as a guidepost for monitoring teams and provide developers with a well-rounded understanding of what is happening in production systems. 
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/fourGoldenSignals.png" alt="Four Golden Signals" />
+        </div>
+
+        <p>
+          <strong>Latency</strong> refers to the time it takes to service a request. Latency directly impacts user experience and is a primary indicator for the performance of a system.
+        </p>
+
+        <p>
+          <strong>Traffic</strong> refers to how much demand is being placed on a system. Traffic can vary according to time of day or by region and can be difficult to manage without sufficient data.
+        </p>
+
+        <p>
+          <strong>Errors</strong> refer to the rate of requests that fail, i.e. 4xx and 5xx status codes. Errors may be isolated to a specific region, time of day, or resource path, and identifying these trends is key.
+        </p>
+
+        <p>
+          <strong>Saturation</strong> refers to the load on the network and servers relative to capacity (i.e. “system fraction”). Measuring saturation can help identify bottlenecks in a system.
+        </p>
+
+        <p>
+          CDN log data can generate metrics that correspond to the golden signals, for example, “90th percentile time to first byte (TTFB)” for latency. However, in order to monitor data from the CDN, it is necessary to transport and process that data to a central location where it can be used. Let’s take a look at what goes into building a data pipeline for taking CDN logs from the source all the way to visualizing those metrics in a dashboard UI. 
+        </p>
+
+        <h2 id="building-a-logging-pipeline">3. Building a Logging Pipeline</h2>
+
+        <p>
+          Data pipelines are systems that process and move data from a source to a destination, where it can then be analyzed. Data pipelines for telemetry data are essential to software monitoring.
+        </p>
+
+        <p>
+          A logging pipeline is a kind of data pipeline for log-based telemetry data. Logging pipelines allow us to collect, visualize and analyze log data for software monitoring and data analysis.
+        </p>
+
+        <p>
+          To better define what makes up a typical logging pipeline, we use the model for telemetry pipelines outlined by Jamie Riedesel in her book Software Telemetry. Riedesel identifies three key “stages” for telemetry pipelines, Emitting, Shipping, and Presentation. Taken together, these three stages describe the flow of telemetry data as it moves through a pipeline.
+        </p>
+
+        <p>
+          Let’s look at each stage. 
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/CDNLoggingPipeline.png" alt="CDN Logging Pipeline" />
+        </div>
+
+        <h3 id="emitting">3.1 Emitting</h3>
+
+        <p>
+          First is the emitting stage. In the emitting stage, data is accepted from production systems and prepared for shipment in the logging pipeline.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/emitting.png" alt="Emitting" />
+        </div>
+
+        <h3 id="shipping">3.2 Shipping</h3>
+        <p>
+          The shipping stage takes raw log data from the data source and moves it to storage. In order to do this, there are 3 necessary steps: Collection, transformation and storage.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/shipping.png" alt="Shipping" />
+        </div>
+
+        <h3 id="presentation">3.3 Presentation</h3>
+
+        <p>
+          The final stage in a logging pipeline is presentation. This is where log data is queried and visualized through a user interface. Here, users make sense of the data and derive insights for various purposes. 
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/presentation.png" alt="Presentation" />
+        </div>
+
+        <p>
+          Now that we have a better understanding of what a logging pipeline is, let’s take a look at the challenges associated with building a CDN logging pipeline.
+        </p>
+
+        
+        <h2 id="challenges-with-building-a-logging-pipeline">4. Challenges with Building a CDN Logging Pipeline </h2>
+
+        <p>
+          Working with CDN logs comes with a unique set of challenges. The root of these challenges lies with the fact that <strong>CDNs emit massive amounts of log data</strong>. The deluge of logs makes data ingestion, querying, visualization, and storage tricky to manage.
+        </p>
+
+        <h3 id="the-scale-of-CDN-log-data">4.1 The Scale of CDN Log Data </h3>
+
+        <p>
+          When a user opens a web page, the browser might issue many requests to the CDN. A single web page can consist of a variety of different assets, such as images, videos, and javascript files, and the web browser must issue requests for each of these resources. 
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/scaleOfCDNLogData1Person.png" alt="The Scale of CDN Log Data One Person" />
+        </div>
+
+        <p>
+          Each of these requests will then hit the CDN layer. This means that traffic from a relatively small number of viewers can add up to a large number of requests at the CDN.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/scaleOfCDNLogData2Computers.png" alt="The Scale of CDN Log Data Two Computers" />
+        </div>
+
+        <p>
+          This means that even for small and medium sized companies, web traffic can result in millions or even billions of requests to the CDN, and an equivalent number of logs. This presents a challenge to engineering teams at these companies, who need to handle all this data. 
+        </p>
+
+        <p>
+          LoveHolidays, an online travel agent, states in an article they published on upgrading their CDN monitoring solution that they process more than <strong>30 gigabytes per day</strong> of CDN logs. That is quite a lot for a medium-sized company to deal with for just one type of telemetry data for one component of their cloud architecture! Altinity, an enterprise database provider, used CDN telemetry as an example of a typical trillion row dataset. 
+        </p>
+
+        <p>
+          The effects of this data flow are felt at every stage of a logging pipeline, from data ingestion to storage and visualization. Let’s take a look at data ingestion, where the effects are felt first.
+        </p>
+
+        <h3 id="ingesting-data-from-the-cdn">4.2 Ingesting data from the CDN</h3>
+
+        <p>
+          Ingesting CDN log data into a pipeline can be challenging. Internet traffic tends to be bursty, similar to traffic at a major train station, which might be busy during rush hour, but nearly empty in the late evening. 
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/burstyIngestion.png" alt="Bursty Ingestion" />
+        </div>
+
+        <p>
+          For the CDN, this means that user activity can fluctuate according to special events, such as flash sales or time of day, resulting in varying log output.  The pipeline needs to be able to handle this varying flow without slowing down or backing up.
+        </p>
+
+        <h3 id="querying-and-visualizing-cdn-log-data">4.3 Querying and Visualizing CDN log data</h3>
+
+        <p>
+          An equally important challenge is how to efficiently query and visualize CDN log data. Monitoring the CDN requires running analytic queries, like data aggregates, where we perform mathematical operations such as “sum” “count” “min/max” and “average” over a large portion of the dataset. This can be slow and expensive to run, especially with such large datasets.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/aggregateQueriesSlow.png" alt="aggregate queries are slow" />
+        </div>
+
+        <p>
+          However, data aggregation is essential to deriving useful information from text-based log data. For example, examining the “time taken” field, (a measure of latency) for one log is rarely useful by itself. If we have many logs, it is much more useful to ask “what was the average time taken?” This data can then be visualized in a chart or graph. 
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/aggregateQueriesTableAvgTimeTaken.png" alt="aggregate queries table avg time taken" />
+        </div>
+
+        <p>
+          While many databases support aggregate queries, not all would perform well with such large datasets. This can be slow and expensive to run, especially with such large datasets, and can be difficult to process in real-time. This poses a significant challenge for a real-time monitoring solution.
+        </p>
+
+        <h3 id="storage-requirements">4.4 Storage Requirements</h3>
+
+        <p>
+          Aside from efficiently running analytic queries, a storage solution for CDN logs has three major requirements:
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/storageRequirements.png" alt="storage requirements" />
+        </div>
+
+        <h4>Retaining Individual Log Lines</h4>
+
+        <p>
+          First, it should ideally be able to store and retrieve <strong>every</strong> log line the CDN emits for debugging and compliance. If we only wanted to use CDN log data for data analysis, we might be able to reduce storage requirements by sampling the data set (or only storing a fraction of the log data emitted by the CDN).
+        </p>
+
+        <p>
+          However, if something goes wrong in a production system’s cloud architecture, the answer to what went wrong might lie in a single log line. In ApacheCon 2019, Geoff Genz gave a presentation describing the way Comcast stores CDN log data. He addressed this problem directly saying “We can't do just aggregates... we have to have the actual events. Because if somebody calls up and asks what happened with this client at this time, we need every single thing that happened”.
+        </p>
+
+        <h4>Providing efficient compression</h4>
+
+        <p>
+          Because we need to store all this data, doing so efficiently becomes very important. The storage solution should therefore be able to efficiently compress and store log data. Reducing the required storage size for large CDN datasets can result in substantial benefits in terms of cost and maintainability.
+        </p>
+
+        <p>
+          A corollary is that databases storing CDN log data should not add large indexes to log data. Indexes are data structures that improve the speed of queries. Large indexes increase the storage requirements and generating the indexes eats up system resources. 
+        </p>
+
+        <h4>Supporting quick batch insertions</h4>
+
+        <p>
+          Finally, because CDNs produce so much log data, our storage solution needs to be able to quickly ingest large quantities of log data. Working with large batches has advantages over streaming individual log lines to the database. Working with batches means that log data can be shipped to the database using fewer requests, saving network bandwidth and making retries easier to manage in the event the database is unavailable.
+        </p>
+
+        <p>
+          In summary, the large volume of logs emitted by CDNs presents challenges at every stage of a logging pipeline, from data ingestion to storage and visualization. However, these technical challenges are not the only considerations teams need to keep in mind when choosing a monitoring solution. Different solutions offer different tradeoffs that we need to consider.
+        </p>
+
+        <h2 id="existing-solutions">5. Existing Solutions</h2>
+
+        <p>
+          Companies interested in monitoring their AWS CloudFront CDN distributions have three main choices: they can use AWS’ ‘native’ monitoring tools, a third-party (SaaS) solution, or they can build their own DIY solution using open source tools. These choices have different advantages and tradeoffs.
+        </p>
+
+        <h3 id="aws-native-monitoring-tools">5.1 AWS ‘Native’ Monitoring Tools</h3>
+
+        <p>
+          The first and easiest choice would be to use the CDN’s “native solution”. For CloudFront, this would be the included <strong>Reports and Analytics</strong> page. CDN native solutions are easy to use and don’t require teams to send data to a third party, but don’t easily integrate with other observability data, and in Amazon’s case, don’t offer customizable dashboards.
+        </p>
+
+        <p>
+          Note: AWS also offers AWS CloudWatch, a fully-featured monitoring solution that can be used to visualize CloudFront logs and metrics, however its cost is on par with third-party SaaS providers, discussed below, and is no easier to use with CloudFront real-time logs than other SaaS solutions, as the logs must be shipped to CloudWatch manually.
+        </p>
+
+        <h3 id="third-party-saas">5.2 Third-Party (SaaS)</h3>
+
+        <p>
+          An appealing option for many teams would be to use a third-party SaaS (“Software as a Service”) solution, such as Datadog or New Relic. 
+        </p>
+
+        <p>
+          SaaS solutions have several advantages. They are easy to use, integrate with other observability data, and feature customizable dashboards. They also manage the logging pipeline for you, relieving the developer from concerns about deploying, scaling, or maintaining pipeline infrastructure. 
+        </p>
+
+        <p>
+          However, SaaS solutions are not ideal for teams that have strict data ownership requirements. Teams handling sensitive data or operating in regulated industries must consider data privacy and compliance requirements. They would have to give up control over their log data and infrastructure to a third-party, including the ability to decide how and where the logs are stored and processed. Third-party vendors can also be expensive.
+        </p>
+
+        <h3 id="diy">5.3 DIY</h3>
+
+        <p>
+          Finally, teams looking to monitor the CDN can choose to build a custom DIY solution. 
+        </p>
+
+        <p>
+          A main advantage of DIY solutions is data ownership. DIY solutions allow development teams to retain complete control over their data: who accesses it, where it’s stored, and how long to store it. It also means the flexibility to customize the pipeline according to their specific requirements.
+        </p>
+
+        <p>
+          The downside to this approach is the labor required to build it. Building a solution could take weeks or months depending on the complexity of the project and available developer time. 
+        </p>
+
+        <h3 id="another-option">5.4 Another Option?</h3>
+
+        <p>
+          For some teams, both SaaS solutions and the AWS native solutions may not work for their specific use case.  However, they may also not want to devote substantial developer time to building a DIY solution. <strong>This is where Canopy fits in.</strong>
+        </p>
+
+        <h2 id="introducing-canopy">6. Introducing Canopy</h2>
+
+        <p>
+          Canopy’s design incorporates the ease of use of a third-party SaaS solution with the data ownership and control associated with a DIY approach. 
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/comparisonTableWCanopy.png" alt="comparison table with canopy" />
+        </div>
+
+        <p>
+          Canopy’s architecture is built using open-source components that are configured within the team’s own AWS account, allowing them full control of their data. Canopy also features customizable, real-time dashboards and fully-automated deployment.
+        </p>
+
+        <p>
+          However, Canopy lacks certain features offered by platforms like DataDog or a fully customized DIY solution. For example Canopy does not support integrating CDN log data with other observability data.
+        </p>
+
+        <p>
+          Let’s explore how to use Canopy for your team’s monitoring needs.
+        </p>
+
+        <h2 id="using-canopy">7. Using Canopy</h2>
+
+        <h3 id="installing-and-deploying-the-canopy-pipeline">7.1 Installing and Deploying the Canopy pipeline</h3>
+
+        <p>
+          Canopy is designed to be easy to use and require minimal configuration. The Canopy logging pipeline can be deployed to AWS in one command using “canopy deploy”. Detailed installation and configuration information can be found on our Github page.
+        </p>
+
+        <h3 id="monitoring-cdn-log-data">7.2 Monitoring CDN log Data</h3>
+
+        <p>
+          Canopy provides a custom set of Grafana-powered real-time dashboards divided into three tabs: CDN Logs Overview, Client Information, and Performance. They include metrics and visualizations corresponding to the four golden signals.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/dashboardPics/graf_cdn_logs_overview.png" alt="Grafana Overview" />
+        </div>
+
+        <p>
+          This image shows the “CDN logs overview” dashboard, which is the main landing page for our users to monitor their CloudFront distributions. Here, we present traffic and error metrics, allowing users to quickly assess the health of their CDN traffic. The top row shows the overall cache hit ratio as well as information related to errors and total requests.
+        </p>
+
+        <p>
+          There are 2 other Grafana dashboards.
+        </p>
+
+        <p>
+          The Client Information tab presents traffic metrics, specifically related to the client. 
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/dashboardPics/graf_client_info.png" alt="Grafana Client Info" />
+        </div>
+
+        <p>
+          The Performance tab presents latency and saturation metrics.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/dashboardPics/graf_performance.png" alt="Grafana Performance" />
+        </div>
+        
+        <h4>Admin Dashboard</h4>
+
+        <p>
+          Canopy also has an Admin dashboard, displayed here. From the Admin Dashboard, users can conveniently deploy and configure pipeline infrastructure as well as monitor the status of pipeline architecture after it has been deployed.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/dashboardPics/admin_configure.png" alt="Admin Dash Configure" />
+        </div>
+
+        <p>
+          From the Admin Dashboard, teams can also configure “quick alerts” with the click of a button. Quick alerts send email notifications to teams when certain thresholds are met, corresponding to the golden signals. 
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/dashboardPics/admin_alerts.png" alt="Admin Dash Alerts" />
+        </div>
+
+        <p>
+          In the upcoming sections, we will discuss the challenges and engineering considerations that went into building Canopy’s pipeline architecture and examine the evolution of that architecture from an initial prototype to its current form.
+        </p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       </section>
     </main>
   </div>
