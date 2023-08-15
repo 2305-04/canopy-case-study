@@ -75,6 +75,30 @@
         <li>
           <a href="#using-canopy"> 7. Using Canopy</a>
         </li>
+        <li>
+          <a href="#architecture-overview">8. Architecture Overview</a>
+        </li>
+        <li>
+          <a href="#fundamental-challenges">9. Fundamental Challenges</a>
+        </li>
+        <li>
+          <a href="#automating-cloud-deployment">10. Automating Cloud Deployment</a>
+        </li>
+        <li>
+          <a href="#improving-the-core-pipeline">11. Technical Challenges: Improving the Core Pipeline</a>
+        </li>
+        <li>
+          <a href="#beyond-the-core-pipeline">12. Beyond the Core Pipeline</a>
+        </li>
+        <li>
+          <a href="#final-architecture">13. Final Architecture</a>
+        </li>
+        <li>
+          <a href="#conclusion">14. Conclusion</a>
+        </li>
+        <li>
+          <a href="#future-work">15. Future work</a>
+        </li>
       </ul>
     </aside>
 
@@ -534,35 +558,573 @@
           In the upcoming sections, we will discuss the challenges and engineering considerations that went into building Canopy’s pipeline architecture and examine the evolution of that architecture from an initial prototype to its current form.
         </p>
 
+        <h2 id="architecture-overview">8. Architecture Overview</h2>
+
+        <p>
+          Building Canopy was a multi-step process. Through several iterations, we took Canopy from an idea to a fully automated real-time logging pipeline. We began by identifying the core requirements for our project and then proceeded to build an initial prototype.
+        </p>
+
+        <h3 id="core-pipeline-architecture">8.1 Core Pipeline Architecture</h3>
+
+        <p>
+          From the model for Telemetry Pipelines described earlier, we knew that we needed an emitting stage, a shipping stage and a presentation stage. When we set out to build Canopy, we started by mapping out the core components we needed for each stage of its pipeline.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/keyComponentsArchitecture.png" alt="prototype architecture" />
+        </div>
+
+        <p>
+          During the emitting stage, the <strong>CDN</strong> emits a continuous flow of logs as users make requests to the CDN.
+        </p>
+
+        <p>
+          The shipping stage consists of 3 steps: collection, transformation and storage. For collection, a <strong>stream</strong> collects and stores logs in real-time as they flow from the CDN. For transformation, the <strong>log transformer</strong> transforms those logs to a format appropriate for storage. For storage, the <strong>log shipper</strong> buffers and batches the transformed logs, and inserts and stores the log data into the <strong>database</strong>.
+        </p>
+
+        <p>
+          During the presentation stage, the <strong>visualizer</strong> queries the data stored in the <strong>database</strong> and visualizes the results in charts, graphs and tables in real-time.
+        </p>
+        
+        <p>
+          After pinpointing the core components required for Canopy, the next step we undertook was building a working prototype based off of this architecture. In the following section, we discuss the challenges we encountered during development and how we addressed and resolved them.
+        </p>
+
+        <h2 id="fundamental-challenges">9. Fundamental Challenges</h2>
+
+        <h3 id="data-storage">9.1 Data Storage</h3>
+
+        <p>
+          Selecting a storage solution for CDN logs proved to be one of the most difficult decisions we had to make. We explored various possibilities, including Elasticsearch, time-series databases and columnar databases.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/elasticTimescaleClickhouse.png" alt="elastic vs timescale vs clickhouse" />
+        </div>
+
+        <p>
+          Our use case had unique requirements due to the nature of CDN log data. Our database should be able to handle large amounts of CDN logs at scale without sampling and efficiently handle data aggregates. Therefore, we needed to consider the level of indexing to minimize storage for preventing sampling. We also needed to consider the type of queries that each database optimizes for.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/databaseTableComp.png" alt="Database table comparison" />
+        </div>
+
+        <p>
+          Elasticsearch, a popular search engine and database for log analysis, indexes the full contents of stored documents, thus making it great for full-text search.
+        </p>
+
+        <p>
+          We also considered time-series databases, since several of our metrics analyze changes over time. Time-series databases index data over a single dimension - time - making them efficient for running simple queries, such as aggregating a single metric over time.
+        </p>
+
+        <h4>Final Verdict: Columnar Database </h4>
+
+        <p>
+          Ultimately, we decided on a columnar database, more specifically ClickHouse. ClickHouse offered sparse indexing and efficient compression for reducing storage. It also offered a column-oriented approach to processing data. This approach optimizes for our use case’s more complex queries that aggregate several metrics over multiple dimensions. This includes examples such as URI by HTTP status code and requests by IP address.
+        </p>
+
+        <p>
+          The vast majority of the queries we planned to make to the database follow a pattern: they use a fairly large number of rows in the database, but only a small subset of columns. 
+        </p>
+
+        <p>
+          A columnar database stores data in columns, as opposed to rows. Its power lies in the ability to access a column of data and collapse it into a calculated result. This facilitates faster aggregation of data because the database only reads the necessary columns and omits the ones not needed for the query. CDN logs tend to form large datasets, and a columnar database can consolidate a high volume of data from a small subset of columns without the need to search entire rows of a table.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/columnarDatabaseCacheHits.png" alt="Calculating cache hits with a columnar database" />
+        </div>
+
+        <p>
+          ClickHouse also uses sparse indexes. In ClickHouse, the values for each column are stored in separate files and sorted by a primary index. In Canopy’s case, we use timestamp as the primary index. ClickHouse indexes by default do not assign a unique value for each row, but rather, assign a unique value to a medium-sized batch of data, which can then be retrieved efficiently. Sparse indexes minimize storage needs and work well with batch insertions, which is well-suited to our use case.
+        </p>
+
+        <p>
+          While sparse indexes are less suitable for queries that fetch individual rows, our use case focuses primarily on aggregates. Furthermore, using timestamp as a primary key and sparse index still allows for acceptable query performance when searching for a subset of logs within a particular time range.
+        </p>
+
+        <p>
+          Sorted columnar data also adds another side benefit: efficient compression. Since sorted data in a column file tends to be similar and contains repeated adjacent values, it compresses well, as compared to compressing a series of rows. 
+        </p>
+
+        <p>
+          Companies, such as Uber and CloudFlare, transitioned from Elasticsearch to ClickHouse due to Elasticsearch’s limitations in handling high data volumes. The combination of sparse indexes and efficient compression allowed CloudFlare to remove sampling completely.<sup class="footnote-ref"><a id="fnref12" href="#fn12">[1]</a></sup>
+        </p>
+
+        <h3 id="moving-data-in-near-real-time">9.2 Moving Data in (near) Real-Time </h3>
+
+        <p>
+          Now that we had chosen ClickHouse as our database, the next challenge we faced was how to move log data from the CDN to ClickHouse in real-time. This represents the shipping stage, and therefore, we needed stream storage, a log transformer and a log shipper. For the prototype, we prioritized development speed and reliability, relying on well-established and mature industry tools for these components.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/streamsFirehoseVector.png" alt="Kinesis Data Streams to FireHose to Vector" />
+        </div>
+
+        <p>
+          By default, CloudFront real-time logs are delivered to <strong>AWS Kinesis Data Streams</strong>, a fully managed service for collecting and storing data in a stream. As a result, this is the first stop in our pipeline. Each stream consists of one or more shards - a unit of capacity - where log records are grouped and stored, with their order preserved. 
+        </p>
+
+        <p>
+          After logs are stored in a stream, we needed a way to deliver them to our log transformer. One option was to build an application that would read data from Kinesis Data Streams, process the data and deliver it.
+        </p>
+
+        <p>
+          Ultimately, we chose <strong>AWS Kinesis Data Firehose</strong>, a fully managed service for data delivery. As Firehose has a minimum buffer interval of 60 seconds, we use it to provide a “near real-time” solution for delivering logs. 
+        </p>
+
+        <p>
+          Finally, we needed a log transformer and a log shipper. One option was to build both components in tandem, which would streamline our overall architecture.
+        </p>
+
+        <p>
+          Ultimately we opted to use <strong>Vector</strong>, an open-source tool for aggregating, transforming and routing observability data. Since Vector was out-of-the-box compatible with both Firehose and ClickHouse, it was a convenient choice to use as a data pipe between the two components, in addition to performing log transformation.
+        </p>
+
+        <h3 id="data-transformation">9.3 Data Transformation
+        </h3>
+
+        <p>
+          The next challenge we faced was how to transform logs before loading the data into ClickHouse. Each CloudFront log is emitted in the form of a plain-text string with no predefined fields included.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/parseLogData.png" alt="parse log data" />
+        </div>
+
+        <p>
+          With Vector, our log transformer, we use its built-in parsing function to write a custom regex pattern. This pattern converts the log into a structured JSON object and maps field names to their corresponding values within the log. Finally, we convert specific values to the appropriate data types for storage in ClickHouse. For example, timestamps are stored in the “DateTime” format, while CDN edge locations are stored as strings.
+        </p>
+
+        <p>
+          The appeal of using Vector in this context stems from its dual functionality as a data pipe linking Firehose to ClickHouse. Using Vector allowed us to rapidly build our prototype architecture.
+        </p>
+
+        <h3 id="deploying-the-canopy-backend">9.4 Deploying the Canopy Backend
+        </h3>
+
+        <p>
+          After successfully addressing data storage, moving data in real-time and data transformation, we had developed a functional prototype on our local computers. However, one final challenge remained: ensuring that anyone could set up and start using Canopy as easily as possible. This goal necessitated deploying Canopy to the cloud.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/howToDeployBackendQuestion.png" alt="How to deploy" />
+        </div>
+
+        <p>
+          While Data Streams and Firehose are directly created within AWS, for the other components comprising the Canopy backend (Vector, ClickHouse and our visualizer, Grafana), our first priority was deploying them locally.
+        </p>
+
+        <p>
+          Ultimately, the solution we chose was Docker. We leveraged Docker to containerize our backend components and used Docker Compose to deploy and run them as containers on a host. With built-in service discovery, our containers automatically communicated with each over a private network. Moreover, built-in data persistence ensured preservation of both the data in our database and the dashboards in Grafana.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/devAWStoLocalComputerWDocker.png" alt="AWS to Local Computer with Docker" />
+        </div>
+
+        <p>
+          Docker also integrates well with AWS. Once we had the Docker setup working locally, it simplified the process of moving our backend to the cloud.
+        </p>
+
+        <p>
+          We considered two options for cloud deployment: Amazon EC2 and Amazon Elastic Container Service (ECS) with Fargate.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/ec2VSecs.png" alt="EC2 vs ECS" />
+        </div>
+
+        <p>
+          EC2 is a virtual private server service. In this scenario, we rent a virtual private server - or an instance of EC2 - and run our backend as Docker containers within that instance.  ECS and Fargate are fully managed services, eliminating the need for manual management and scaling of containers and the infrastructure they’re hosted on.
+        </p>
+
+        <p>
+          Ultimately, for simplicity purposes, we opted for the EC2 instance. Deploying Docker containers on EC2 mimicked the process of deploying on a local computer. Configuring our containers to work with ECS and Fargate for data persistence and service discovery involved substantial complexity. We decided to forgo that complexity for creating a working prototype.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/packageDockerLocalToEC2.png" alt="package docker local to EC2" />
+        </div>
+
+        <h3 id="prototype-architecture">9.5 Prototype Architecture</h3>
+
+        <p>
+          The diagram below shows our prototype architecture, which we built to address the fundamental challenges discussed previously. 
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/prototypeArchitecture.png" alt="prototype Architecture" />
+        </div>
+
+        <p>
+          With this prototype, we successfully implemented a working solution. Users could deploy our backend infrastructure to an EC2 instance, and visualize logs and metrics in near real-time on Grafana dashboards. However, to improve ease of use, we still needed to automate the deployment of our cloud infrastructure. 
+        </p>
+
+        <h2 id="automating-cloud-deployment">10. Automating Cloud Deployment</h2>
+
+        <p>
+          Setting up and properly configuring AWS resources can be complex, and automating this process would relieve developers from that burden. To accomplish this, we used AWS CDK to automate cloud deployment, and we built a command line interface to make configuration and deployment more intuitive.
+        </p>
+
+        <h3 id="amazon-cdk">10.1 Amazon CDK</h3>
+
+        <p>
+          AWS CDK (Cloud Development Kit) is an infrastructure-as-code tool that deploys all our AWS resources with code written in JavaScript. We use it to automatically deploy Kinesis Data Streams, Kinesis Firehose and Canopy’s backend - Vector, ClickHouse and Grafana - on Amazon EC2. 
+        </p>
+
+        <p>
+          AWS CDK serves as a wrapper for Amazon CloudFormation. CloudFormation uses a declarative language - YAML or JSON - as a template to provision cloud resources. With CDK, we combine the capabilities of CloudFormation with the convenience of JavaScript. We selected CDK over other tools like Terraform, primarily for simplicity. We did not want to introduce another third-party tool into our architecture when a native AWS solution was readily available.
+        </p>
+
+        <h3 id="building-the-canopy-cli">10.2 Building the Canopy CLI</h3>
+
+        <p>
+          With Docker containers and CDK code in place, our users could now deploy all of Canopy’s architectural components with greater ease. To make this process more intuitive, we decided to build a command-line interface (CLI).
+        </p>
+
+        <p>
+          Deploying cloud architecture requires correctly configuring AWS account details. Building a CLI enabled us to prompt users for the required information, such as their AWS account ID and CloudFront distribution ID, instead of requiring them to navigate through a detailed set of configuration steps. Additionally, by offering intuitive CLI commands, such as “canopy deploy” and “canopy destroy”, we removed the need for our users to worry about the underlying file structure of our deployment code.
+        </p>
+
+        <p>
+          Upon building and automating Canopy’s prototype architecture, we achieved a working solution accompanied with a user-friendly deployment and configuration process. However, during the course of prototyping, we identified areas where we could improve upon how Canopy could better suit its use case. With its core functionality in place, we set out to optimize and refine our current working version of Canopy.  
+        </p>
+
+        <h2 id="improving-the-core-pipeline">11. Technical Challenges: Improving the Core Pipeline</h2>
+
+        <p>
+          When we set out to make Canopy, two of our key goals were:
+        </p>
+
+        <ul>
+          <li>
+            <p>
+              <strong>Ease of Use:</strong> We wanted to create a solution that would be as easy to set up and use as possible.
+            </p>
+          </li>
+          <li>
+            <p>
+              <strong>Real-Time Dashboard Updates:</strong> We wanted to deliver a true "real-time" experience. This meant dashboards that updated instantaneously as log data streamed in, enabling users to monitor events in real-time.
+            </p>
+          </li>
+        </ul>
+
+        <h3 id="limitations-to-ease-of-use">11.1 Limitations to Ease of Use</h3>
+
+        <p>
+          Our initial prototype relied on Kinesis Data Firehose to deliver data from Kinesis Data Streams to the log transformer, Vector, over an encrypted HTTPS connection. This approach exposed several limitations. 
+        </p>
+
+        <p>
+          First, Firehose’s HTTPS requirement limited ease of use by making configuration more complex. Specifically, it forced our users to create a new domain or subdomain, generate their own TLS certificate file, upload the certificate, maintain certificate validity, and update DNS records with the IP address of our dynamically generated EC2 instance. These tasks placed a substantial burden on the user and made our solution more difficult to set up and use.
+        </p>
+
+        <h3 id="limitations-to-real-time-dashboards">11.2 Limitations to Real-Time Dashboards</h3>
+
+        <p>
+          Using AWS Firehose revealed another limitation. Firehose buffers data for at least 60 seconds before streaming it to its destination, resulting in unwanted latency. Additional latency is also introduced by:
+        </p>
+
+        <ol>
+          <li>
+            <p>
+              The HTTPS connection between Firehose and Vector: A 3-way handshake plus a TLS handshake means 3 additional round trips across the wire before log data is routed to ClickHouse.
+            </p>
+          </li>
+          <li>
+            <p>
+              Routing parsed log data from Vector to Clickhouse: another 3-way handshake.
+            </p>
+          </li>
+        </ol>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/handshakes.png" alt="tls and tcp handshakes" />
+        </div>
+
+        <p>
+          This introduced a delay of over a minute before logs could be stored in ClickHouse and visualized in Grafana, thus preventing Canopy from delivering a true real-time experience. 
+        </p>
+
+        <h3 id="building-a-custom-log-transformer-shipper">11.3: Solution: Building a Custom Log Transformer/Shipper Using AWS Lambda</h3>
+
+        <p>
+          To overcome these limitations, we made the strategic choice of building a custom log transformer and shipper using AWS Lambda. This decision enabled us to simplify the architecture, eliminating the need for both Vector and Firehose. The Lambda function fulfills two critical roles:
+        </p>
+
+        <ul>
+          <li>
+            <p>
+              <strong>Log Transformer:</strong> By incorporating the decoding, parsing, and transformation logic within the Lambda function, we reduced the number of hops logs needed to traverse to reach ClickHouse, resulting in reduced latency.
+            </p>
+          </li>
+          <li>
+            <p>
+              <strong>Log Shipper:</strong> The Lambda function routes logs directly to ClickHouse immediately after they are read from Kinesis Data Streams and transformed by the Lambda. This results in a true “real-time” solution, in contrast to the previous “near real-time” setup associated with Firehose.
+            </p>
+          </li>
+        </ul>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/beforeLambdaNonIsoflowArchitecture.png" alt="before lambda architecture" />
+        </div>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/afterLambdaNonIsoflowArchitecture.png" alt="after lambda architecture" />
+        </div>
+
+        <h3 id="using-lambda-with-sqs-for-failover">11.4 Using AWS Lambda with SQS & S3 For Failover</h3>
+
+        <p>
+          In addition to simplifying Canopy’s architecture, our Lambda-based solution offered the following benefits:
+        </p>
+
+        <ul>
+          <li>
+            <p>
+              <strong>Flexible Buffering:</strong> Using Lambda gave us complete control over log buffering. We could adjust the buffer to replicate Firehose's 60-second buffer or achieve an even more real-time buffer (with intervals as low as 0 seconds), depending on the needs of our users. While opting for a shorter buffer interval could lead to more frequent database writes, ClickHouse can handle batch insertions as frequently as once per second.  
+            </p>
+          </li>
+          <li>
+            <p>
+              <strong>Versatile Data Transport:</strong> Using a Lambda function allowed us to ship logs over HTTP, removing the need for users to perform the manual configuration steps required for setting up an HTTPS endpoint with Firehose. Since log data is transported within our architecture, we felt the benefits of using HTTPS were outweighed by the inconveniences in terms of user-friendly deployment and maintainability. In the future, we aim to reintroduce support for users who prefer or need to configure deployment using HTTPS. Lambda can support both use cases.
+            </p>
+          </li>
+          <li>
+            <p>
+              <strong>Improved Latency:</strong> Logs can now be parsed and routed directly to ClickHouse from the Lambda function, reducing network hops from 2 to 1 (by removing Vector) and network round trips from 3 to 1 (by removing the need for TLS handshakes), resulting in reduced latency.
+            </p>
+          </li>
+          <li>
+            <p>
+              <strong>Improved Debugging: </strong> When our Lambda code throws an error, Lambda records a log that details exactly what happened, which is convenient for debugging network and infrastructure faults. Firehose lacks this feature, making debugging a potentially frustrating process.
+            </p>
+          </li>
+          <li>
+            <p>
+              <strong>Scalability: </strong> The Lambda function's ability to process up to 10,000 records per invocation aligned well with Canopy's requirement to handle a massive number of logs, surpassing Firehose's maximum batch size of 500 records.
+            </p>
+          </li>
+        </ul>
+
+        <h3 id="handing-failed-logs">11.5 Handling failed logs</h3>
+
+        <p>
+          One of the major challenges in dealing with a distributed system is accounting for network failures. 
+        </p>
+
+        <p>
+          <strong>
+            What happens if logs cannot be successfully delivered to the database due to ephemeral network failures or if they fail to be inserted into the database due to database server errors? 
+          </strong>
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/networkFailureIncompleteData.png" alt="network Failure Incomplete Data" />
+        </div>
+
+        <p>
+          In our prototype, Firehose handled failed logs for us. It routed batches of logs that couldn't be successfully delivered to the database towards S3 for storage. 
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/prototypeFailedLogsPipelineNonIso.png" alt="prototype Failed Logs Pipeline" />
+        </div>
+
+        <p>
+          We could have implemented a similar solution with our Lambda function, routing failed logs to S3 based on error response codes from requests sent to ClickHouse, or by utilizing the failed request callback handler. However, this approach posed a problem: logs that failed and were stored in S3 cannot be visualized on our Grafana dashboards. As a result, the data and metrics presented to our users could become inaccurate. 
+        </p>
+
+        <p>
+          To address this issue, we leveraged Kinesis Data Streams as a buffer for failed logs. We configured our Lambda function to throw an error if a batch of logs could not be inserted into Clickhouse or if the request failed. This action triggered Kinesis Data Streams to re-stream failed logs, according to a configurable setting that tracks the age of the logs in the stream.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/dataStreamsBuffersFailedLogs.png" alt="data streams buffers failed logs" />
+        </div>
+
+        <p>
+          We also configured the Lambda function to retry shipping failed logs based on the recorded number of retries. Only after reaching a max-retry limit would the data be sent to S3. This approach ensured that ephemeral network outages or database server errors would not result in inconsistent data in our Grafana dashboards. 
+        </p>
+
+        <p>
+          It’s important to note that this solution has a tradeoff: the additional monetary cost incurred for each Lambda invocation. However, we deemed these additional invocations necessary to prioritize data integrity and maintain the accuracy of the visualizations on the Grafana dashboards. 
+        </p>
+
+        <h3 id="archiving-failed-logs">11.6 Archiving Failed Logs for Debugging & Compliance</h3>
+
+        <p>
+          Although this solution was effective, it raised another question: <strong>What happens when records in Kinesis Data Streams reach their max age or when the max-retry limit is met?</strong> In either scenario, failed logs would be ejected from the stream, and we would lose any record of them.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/dataStreamsCarryingLogs.png" alt="data streams carrying failed logs" />
+        </div>
+
+        <p>
+          To address this issue, we created a separate pipeline for handling failed log data. This pipeline consists of a dead-letter queue, managed by AWS Simple Queue Service, along with a Lambda function that pushes failed logs to S3 for persistent storage.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/lambdaFailedLogsPipelineNonIso.png" alt="lambda failed logs pipeline" />
+        </div>
+
+        <p>
+          A dead letter queue is a type of message queue designed to temporarily store messages that a system fails to process due to errors.<sup class="footnote-ref"><a id="fnref13" href="#fn13">[13]</a></sup> Kinesis Data Streams pushes failed logs to the queue when the batch has failed after multiple retries. The Lambda function then reads from the dead-letter queue and stores the failed logs in S3 before clearing them from the queue asynchronously. While this approach introduced added complexity, it ensured that failed logs would be archived for debugging and compliance needs, supporting our core use case.
+        </p>
+
+        <h2 id="beyond-the-core-pipeline">12. Beyond the Core Pipeline</h2>
+
+        <p>
+          The improved architecture provided our users a true real-time monitoring experience and simplified deployment, while also accounting for potential network failures. With the core pipeline elements in place, we turned our attention to "quality of life" improvements. This included adding support for monitoring multiple CloudFront distributions in parallel, as well as creating an Admin Dashboard for pipeline management.
+        </p>
+
+        <h3 id="adding-support-for-multiple-distributions">12.1 Adding Support for Parallel CloudFront Distributions</h3>
+
+        <p>
+          At this juncture, Canopy only supported working with a single CloudFront distribution. However, it is not uncommon for development teams to have multiple distributions within a single AWS account. Distributions can be configured with different cache-control policies, geographic restrictions, and real-time log configurations, which can be useful when working with multiple domains that require different CDN settings.
+        </p>
+
+        <p>
+          To accommodate monitoring multiple distributions, teams would need to either duplicate Canopy’s pipeline infrastructure, or manually attach another distribution to the existing pipeline. To better serve these users, we decided to add native support for multiple parallel CloudFront distributions. 
+        </p>
+
+        <h3 id="weighing-options-for-parallelization">12.2 Weighing Options for Parallelization</h3>
+
+        <p>
+          When considering how to implement support for multiple CloudFront distributions, we evaluated two main options: parallelization and consolidation. 
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/parallelDistros.png" alt="parallel distributions" />
+        </div>
+
+        <p>
+          Parallelization meant “parallelizing” or duplicating the shipping part of our pipeline. Parallelizing components could help our pipeline scale by adding extra capacity. For example, assigning a separate Lambda function to each distribution would ensure that the processing power scales linearly with each additional distribution.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/mulitpleDistrosNonIso.png" alt="parallel distributions" />
+        </div>
+
+        <p>
+          On the other hand, consolidation meant parallelizing as few components as possible and instead consolidating log data from different CloudFront distributions into the same pipeline.
+        </p>
+
+        <p>
+          Ultimately, we opted for consolidation. Duplicating infrastructure can lead to increased costs and complexity. We would need to keep track of all parallel components so that they could be monitored and torn down. Ingesting logs from multiple distributions into a single pipeline was simpler and more maintainable, eliminating the necessity for additional cloud components to manage.
+        </p>
+
+        <h3 id="attaching-a-distribution">12.3 Attaching a Distribution</h3>
+
+        <p>
+          To attach an individual CloudFront distribution to the logging pipeline, we created the `canopy add` CLI command. This command automates attaching a distribution to the pipeline with Canopy’s default sampling rate (100%) and data model (all CloudFront logs fields are included in a log record). After attaching a distribution, logs originating from the distribution are emitted into the Canopy pipeline and can be visualized in Grafana within minutes.
+        </p>
+
+        <p>
+          When the `canopy destroy` command is run, all distributions are detached from the pipeline before Canopy’s AWS resources are deleted. 
+        </p>
+
+        <h3 id="keeping-track-of-distribution-ids">12.4 Keeping Track of Distribution IDs using SQLite</h3>
+
+        <p>
+          In order to track data associated with multiple distributions for use in our Admin Dashboard, we opted to use SQLite. SQLite is a robust, open-source relational database that does not need a server to run and requires minimal configuration. We initially considered PostgreSQL, but encountered several issues.
+        </p>
+        
+        <p>
+          Configuring Postgres required a complex setup using a Bash script, a process which varies depending on the operating system. Additionally, if a user shut down their system, they would need to restart the database server before opening the Admin Dashboard. SQLite provides all the functionality necessary for our use case, while reducing complexity and offering an improved user experience.
+        </p>
+
+        <h3 id="building-the-admin-dashboard">12.5 Building the Admin Dashboard
+        </h3>
+
+        <p>
+          The other improvement we made was building a custom Admin Dashboard. We adopted a “3-tier” architecture, with a presentation tier, application tier and data tier, where a TypeScript-based React UI communicates with an Express web server and application server, and SQLite for storage.The dashboard is installed locally and can be run using the CLI “canopy launchDashboard” command.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/admin3TierArchitecture.png" alt="admin architecture" />
+        </div>
+
+        <p>
+          In addition to the features described earlier, the Admin Dashboard was designed to help monitor the Canopy pipeline infrastructure.
+        </p>
+
+        <p>
+          It collects and prevents metrics from ClickHouse and Grafana instances, enabling users to monitor the health of their deployed pipeline infrastructure.
+        </p>
+
+        <div class="img-wrapper">
+          <img src="images/dashboardPics/admin_monitor.png" alt="admin monitor" />
+        </div>
+
+        <p>
+          It also displays a list of configured CloudFront distributions, the data of which is stored in the SQLite database. This capability provides users with a seamless way to track and manage their various distributions.
+        </p>
+
+        <h2 id="final-architecture">13. Final Architecture</h2>
+
+        <div class="img-wrapper">
+          <img src="images/diagrams/finalArchitecture.png" alt="admin monitor" />
+        </div>
+
+        <p>
+          Canopy’s final architecture represents a summation of all of the insights, iterations and problems we encountered along the way. The pipeline is built to efficiently ingest, ship, store, and visualize CDN log data. It is easy to use, has fully automated deployment, and features useful dashboards that update in real-time. It is able to gracefully manage ephemeral outages, and provides native support for monitoring parallel CloudFront distributions.
+        </p>
+
+        <h2 id="conclusion">14. Conclusion</h2>
+
+        <p>
+          Building a real-time monitoring framework for CDN log data proved to be more challenging than we had initially expected. At the outset, it required us to carefully consider the complexities of working with large datasets. When building Canopy’s pipeline architecture, we then had to weigh the relative strengths of each component and build custom solutions where existing components fell short for our use case.
+        </p>
+
+        <p>
+          In the end, we achieved our objective of building an easy to use, fully-automated, real-time logging pipeline for CDN log data. However, there is always room for improvement and we hope to continue our work and improve Canopy in the future.
+        </p>
+
+        <h2 id="future-work">15. Future work</h2>
+
+        <p>
+          Some of the features we would like to incorporate in future iterations of Canopy include:
+        </p>
+
+        <ul>
+          <li>
+            <p>
+              Adding the ability for users to perform custom transformations and enrichments on log records
+            </p>
+          </li>
+          <li>
+            <p>
+              Allowing users to choose between HTTP and HTTPS endpoints
+            </p>
+          </li>
+          <li>
+            <p>
+              Improved support for multiple CloudFront distributions, such as adding custom real-time logging configurations and additional dashboard visualizations
+            </p>
+          </li>
+          <li>
+            <p>
+              Improving the Quick Alerts feature, making it more customizable and offering more options for notification settings
+            </p>
+          </li>
+          <li>
+            <p>
+              Adding support for local deployment
+            </p>
+          </li>
+          <li>
+            <p>
+              Adding configuration options for ClickHouse and the EC2 instance
+            </p>
+          </li>
+        </ul>
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        <h2 id="References">8. References</h2>
+        <h2 id="References">References</h2>
         <div class="footnotes">
           <ol class="footnotes-list">
             <li id="fn1" class="footnote-item">
@@ -629,6 +1191,18 @@
               <a href="https://www.youtube.com/watch?app=desktop&v=e9TZ6gFDjNg">Apache Con 2019
               </a>
               <a href="#fnref11">↩︎</a>
+            </li>
+            <li id="fn12" class="footnote-item">
+              <a href="https://blog.cloudflare.com/log-analytics-using-clickhouse">
+                Log Analytics Using Clickhouse
+              </a>
+              <a href="#fnref12">↩︎</a>
+            </li>
+            <li id="fn13" class="footnote-item">
+              <a href="https://aws.amazon.com/what-is/dead-letter-queue">
+                Dead Letter Queue
+              </a>
+              <a href="#fnref13">↩︎</a>
             </li>
           </ol>
         </div>
