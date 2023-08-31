@@ -1344,10 +1344,18 @@ small {
     responsive design (height)
 ------------------------------------ */
 
-@media (max-height: 500px) {
+@media (max-height: 700px) {
   #home {
     display: flex;
     align-items: center;
+  }
+
+  .sidebar li {
+    font-size: 0.7em;
+  }
+
+  .sidebar a { 
+    padding: 0.3rem;
   }
 
   header p {
